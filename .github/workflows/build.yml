@@ -15,24 +15,40 @@ jobs:
       - name: Set up Xcode
         run: sudo xcode-select -s /Applications/Xcode_15.4.app
 
-      - name: Build App Without Signing
+      - name: Inspect Repo
         run: |
+          echo "===== Top level ====="
+          ls -la
+          echo "===== All .xcodeproj ====="
+          find . -name "*.xcodeproj" -not -path "*/\.git/*"
+          echo "===== All .xcscheme ====="
+          find . -name "*.xcscheme" -not -path "*/\.git/*"
+
+      - name: Build by Target
+        run: |
+          PROJECT_PATH=$(find . -name "*.xcodeproj" -not -path "*/\.git/*" | head -n 1)
+          echo "Building: $PROJECT_PATH"
           xcodebuild archive \
-            -project VulnLabAppiOS.xcodeproj \
-            -scheme VulnLabAppiOS \
+            -project "$PROJECT_PATH" \
+            -target VulnLabApp \
             -configuration Debug \
-            -archivePath $PWD/build/VulnLabAppiOS.xcarchive \
+            -sdk iphoneos \
+            -archivePath $PWD/build/VulnLabApp.xcarchive \
             CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_ENTITLEMENTS=""
 
       - name: Package Payload into IPA
         run: |
           mkdir -p Payload
-          cp -r build/VulnLabAppiOS.xcarchive/Products/Applications/VulnLabAppiOS.app Payload/
-          zip -r VulnLabAppiOS.ipa Payload
+          APP_PATH=$(find build/VulnLabApp.xcarchive/Products/Applications -name "*.app" -maxdepth 1 | head -n 1)
+          echo "Found app: $APP_PATH"
+          cp -r "$APP_PATH" Payload/
+          zip -r VulnLabApp.ipa Payload
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: VulnLabAppiOS-Unsigned
-          path: VulnLabAppiOS.ipa
+          name: VulnLabApp-Unsigned
+          path: VulnLabApp.ipa
